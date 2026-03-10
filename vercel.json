@@ -3,15 +3,10 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "frontend/dist",
   "installCommand": "npm run install:all",
-  "functions": {
-    "backend/server.js": {
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/backend/server.js"
+      "destination": "/api"
     }
   ]
 }
