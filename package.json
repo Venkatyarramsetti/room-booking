@@ -16,7 +16,7 @@
     "install:api": "cd api && npm install",
     "install:all": "npm run install:backend && npm run install:frontend && npm run install:api",
     "start": "cd backend && npm start",
-    "vercel-build": "npm run install:backend && npm run install:frontend && npm run install:api && cd frontend && npm run build"
+    "vercel-build": "npm run install:frontend && npm run install:api && cd frontend && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.0"
