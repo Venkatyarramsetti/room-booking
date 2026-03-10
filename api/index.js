@@ -17,13 +17,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Global connection variable
-let cached = global.mongo;
-
-if (!cached) {
-  cached = global.mongo = { conn: null, promise: null };
-}
-
 // Seed admin user and sample rooms if not exist
 async function seedDatabase() {
   const User = require('../backend/models/User');
@@ -42,7 +35,6 @@ async function seedDatabase() {
     });
     console.log('✅ Admin user created');
 
-    // Create sample rooms
     const roomCount = await Room.countDocuments();
     if (roomCount === 0) {
       await Room.create([
@@ -68,27 +60,25 @@ async function seedDatabase() {
 }
 
 // Connect to MongoDB
+let isConnected = false;
+
 async function connectDB() {
-  if (cached.conn) {
-    return cached.conn;
+  if (isConnected && mongoose.connection.readyState === 1) {
+    return;
   }
 
-  if (!cached.promise) {
-    if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI environment variable is not set. Please add it in the Vercel dashboard under Project Settings > Environment Variables.');
-    }
-    cached.promise = mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 10000,
-      bufferCommands: false,
-    }).then(async (mongooseInstance) => {
-      console.log('✅ Connected to MongoDB Atlas');
-      await seedDatabase();
-      return mongooseInstance;
-    });
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI is not set. Go to Vercel Dashboard > Project > Settings > Environment Variables and add MONGODB_URI and JWT_SECRET.');
   }
 
-  cached.conn = await cached.promise;
-  return cached.conn;
+  await mongoose.connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 10000,
+    bufferCommands: false,
+  });
+
+  isConnected = true;
+  console.log('✅ Connected to MongoDB Atlas');
+  await seedDatabase();
 }
 
 // Routes
@@ -98,7 +88,13 @@ app.use('/api/bookings', bookingRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    mongodb_uri_set: !!process.env.MONGODB_URI,
+    jwt_secret_set: !!process.env.JWT_SECRET,
+    db_state: mongoose.connection.readyState // 0=disconnected,1=connected,2=connecting,3=disconnecting
+  });
 });
 
 // Root route
