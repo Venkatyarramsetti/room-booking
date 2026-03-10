@@ -275,6 +275,15 @@ app.get('/api', (req, res) => {
 });
 // --- Serverless Handler -------------------------------------------------------
 module.exports = async (req, res) => {
+  // Ping endpoint - no DB needed, used to verify env vars are set
+  if (req.url === '/api/ping' || req.url === '/api/ping/') {
+    return res.json({
+      ok: true,
+      mongodb_uri_set: !!process.env.MONGODB_URI,
+      jwt_secret_set: !!process.env.JWT_SECRET,
+      node_env: process.env.NODE_ENV || 'not set'
+    });
+  }
   try {
     await connectDB();
   } catch (err) {
