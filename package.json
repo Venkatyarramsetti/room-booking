@@ -10,17 +10,14 @@
     "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev", 
     "build": "npm run build:frontend",
-    "build:frontend": "cd frontend && npm run build",
+    "build:frontend": "cd frontend && npm install && npm run build",
     "install:backend": "cd backend && npm install",
     "install:frontend": "cd frontend && npm install",
-    "install:all": "npm run install:backend && npm run install:frontend",
+    "install:api": "cd api && npm install",
+    "install:all": "npm run install:backend && npm run install:frontend && npm run install:api",
     "start": "cd backend && npm start",
-    "vercel-build": "npm run build:frontend"
+    "vercel-build": "npm run install:frontend && npm run install:api && cd frontend && npm run build"
   },
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "devDependencies": {
     "concurrently": "^8.2.0"
   }
