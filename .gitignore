@@ -1,35 +1,145 @@
-# Node modules
+# Dependencies
 node_modules/
 **/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Environment variables
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env.*.local
 
 # Build files
 dist/
 build/
 frontend/dist/
+frontend/build/
+backend/dist/
+.output/
+*.tsbuildinfo
+.cache/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# ESLint cache
+.eslintcache
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Package manager lockfiles
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnp.*
 
 # Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# IDE
+# Vercel
+.vercel
+.vercel/*
+
+# Next.js build output (if using Next.js later)
+.next/
+out/
+
+# Nuxt.js build / generate output (if using Nuxt.js later)
+.nuxt
+dist
+
+# IDE and editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# OS
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# Misc
-*.bak
+# Temporary files
 *.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Test files
+*.test.js
+*.spec.js
+__tests__/
+
+# Miscellaneous
+*.tgz
+*.tar.gz
+.yarn-integrity
+.sass-cache/
+*.css.map
+*.js.map
+
+# Local development
+.local
+*.local
+
+# Error logs
+error.log
+access.log
+
+# MacOS
+.AppleDouble
+.LSOverride
+
+# Windows
+ehthumbs_vista.db
+*.stackdump
+
+# Linux
+*~
