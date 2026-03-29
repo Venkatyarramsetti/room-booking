@@ -5,8 +5,8 @@ import { authAPI } from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    username: 'ajaykumar',
-    password: 'Ajaykumar@123'
+    username: '',
+    password: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

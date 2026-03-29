@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { roomsAPI, bookingsAPI } from '../utils/api';
 
 const AdminPanel = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState('rooms');
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -190,6 +191,10 @@ const AdminPanel = () => {
       minute: '2-digit'
     });
   };
+
+  if (!isAdmin()) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="admin-panel">

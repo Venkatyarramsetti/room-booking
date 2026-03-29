@@ -11,10 +11,11 @@ const bookingRoutes = require('./routes/bookings');
 
 const app = express();
 const DB_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
-const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'ajaykumar';
-const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Ajaykumar@123';
-const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@roombooking.local';
-const DEFAULT_ADMIN_FULLNAME = process.env.ADMIN_FULLNAME || 'Default Admin';
+const SHOULD_BOOTSTRAP_ADMIN = process.env.BOOTSTRAP_ADMIN === 'true';
+const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const DEFAULT_ADMIN_FULLNAME = process.env.ADMIN_FULLNAME;
 
 const configuredFrontendOrigins = process.env.FRONTEND_URL || process.env.FRONTEND_URLS || 'http://localhost:5173,http://127.0.0.1:5173';
 
@@ -97,12 +98,34 @@ async function connectDB() {
 }
 
 async function ensureDefaultAdmin() {
+  if (!SHOULD_BOOTSTRAP_ADMIN) {
+    return;
+  }
+
+  if (!DEFAULT_ADMIN_USERNAME || !DEFAULT_ADMIN_PASSWORD || !DEFAULT_ADMIN_EMAIL || !DEFAULT_ADMIN_FULLNAME) {
+    console.warn('Skipping admin bootstrap: set BOOTSTRAP_ADMIN=true and provide ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_EMAIL, ADMIN_FULLNAME.');
+    return;
+  }
+
   const User = require('./models/User');
 
-  const existingAdmin = await User.findOne({ username: DEFAULT_ADMIN_USERNAME });
+  const existingUser = await User.findOne({
+    $or: [{ username: DEFAULT_ADMIN_USERNAME }, { email: DEFAULT_ADMIN_EMAIL }]
+  });
+
+  if (existingUser && existingUser.role !== 'admin') {
+    console.warn(`Skipping admin bootstrap: matching user ${existingUser.username} exists but is not admin.`);
+    return;
+  }
+
+  if (existingUser && existingUser.role === 'admin') {
+    console.log(`Admin bootstrap skipped: admin ${existingUser.username} already exists.`);
+    return;
+  }
+
   const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
 
-  if (!existingAdmin) {
+  if (!existingUser) {
     await User.create({
       fullName: DEFAULT_ADMIN_FULLNAME,
       email: DEFAULT_ADMIN_EMAIL,
@@ -111,15 +134,7 @@ async function ensureDefaultAdmin() {
       role: 'admin'
     });
     console.log(`✅ Default admin created: ${DEFAULT_ADMIN_USERNAME}`);
-    return;
   }
-
-  existingAdmin.fullName = DEFAULT_ADMIN_FULLNAME;
-  existingAdmin.email = DEFAULT_ADMIN_EMAIL;
-  existingAdmin.password = hashedPassword;
-  existingAdmin.role = 'admin';
-  await existingAdmin.save();
-  console.log(`✅ Default admin ensured: ${DEFAULT_ADMIN_USERNAME}`);
 }
 
 // Routes
