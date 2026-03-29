@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { roomsAPI, bookingsAPI } from '../utils/api';
+import { DEMO_ROOMS } from '../constants/demoData';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -18,47 +19,17 @@ const Dashboard = () => {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState(''); // 'success' or 'error'
 
-  useEffect(() => {
-    Promise.all([fetchRooms(), fetchBookings()]);
-  }, []);
-
-  useEffect(() => {
-    if (selectedRoom && selectedDate) {
-      fetchAvailableSlots();
-    } else {
-      setAvailableSlots([]);
-      setSelectedSlots([]);
-    }
-  }, [selectedRoom, selectedDate]);
-
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     try {
       const response = await roomsAPI.getAll();
       setRooms(response.data);
     } catch (error) {
       console.error('Error fetching rooms:', error);
-      // Use static demo data when API fails
-      setRooms([
-        {
-          _id: '1',
-          name: 'Conference Room A',
-          description: 'Large conference room with projector and whiteboard. Seats up to 12 people.'
-        },
-        {
-          _id: '2', 
-          name: 'Meeting Room B', 
-          description: 'Small meeting room perfect for team discussions. Seats up to 6 people.'
-        },
-        {
-          _id: '3',
-          name: 'Boardroom',
-          description: 'Executive boardroom with premium furniture. Seats up to 16 people.'
-        }
-      ]);
+      setRooms(DEMO_ROOMS);
     }
-  };
+  }, []);
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
       const response = await bookingsAPI.getAll();
@@ -69,18 +40,31 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAvailableSlots = async () => {
+  const fetchAvailableSlots = useCallback(async (roomId, date) => {
     try {
-      const response = await bookingsAPI.getAvailableSlots(selectedRoom, selectedDate);
+      const response = await bookingsAPI.getAvailableSlots(roomId, date);
       setAvailableSlots(response.data);
       setSelectedSlots([]); // Reset selected slots when changing room/date
     } catch (error) {
       console.error('Error fetching available slots:', error);
       showMessage('Failed to load available slots', 'error');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    Promise.all([fetchRooms(), fetchBookings()]);
+  }, [fetchRooms, fetchBookings]);
+
+  useEffect(() => {
+    if (selectedRoom && selectedDate) {
+      fetchAvailableSlots(selectedRoom, selectedDate);
+    } else {
+      setAvailableSlots([]);
+      setSelectedSlots([]);
+    }
+  }, [selectedRoom, selectedDate, fetchAvailableSlots]);
 
   const showMessage = (msg, type) => {
     setMessage(msg);
@@ -248,7 +232,7 @@ const Dashboard = () => {
               >
                 <option value="">Choose a room...</option>
                 {rooms.map((room) => (
-                  <option key={room._id} value={room._id}>
+                  <option key={room._id || room.id} value={room._id || room.id}>
                     {room.name}
                   </option>
                 ))}
@@ -340,7 +324,7 @@ const Dashboard = () => {
               <div>
                 {bookings.map((booking) => (
                   <div 
-                    key={booking._id} 
+                    key={booking._id || booking.id} 
                     className="booking-item"
                     style={{
                       border: '1px solid #ddd',
@@ -356,7 +340,7 @@ const Dashboard = () => {
                           📍 {booking.room?.name || 'Unknown Room'}
                         </h4>
                         <p style={{ margin: '0.25rem 0', color: '#666' }}>
-                          � {booking.fullName || 'N/A'}
+                          Name: {booking.fullName || 'N/A'}
                         </p>
                         {booking.phoneNumber && (
                           <p style={{ margin: '0.25rem 0', color: '#666' }}>
@@ -367,7 +351,7 @@ const Dashboard = () => {
                           🪪 ID: {booking.idProof || 'N/A'}
                         </p>
                         <p style={{ margin: '0.25rem 0', color: '#666' }}>
-                          �📅 {formatDate(booking.date)}
+                          Date: {formatDate(booking.date)}
                         </p>
                         <p style={{ margin: '0.25rem 0', color: '#666' }}>
                           🕒 {booking.timeSlots?.join(', ') || 'No time slots'}
@@ -384,7 +368,7 @@ const Dashboard = () => {
                       
                       {booking.status === 'confirmed' && (
                         <button
-                          onClick={() => handleCancelBooking(booking._id)}
+                          onClick={() => handleCancelBooking(booking._id || booking.id)}
                           className="btn btn-danger"
                           style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
                         >

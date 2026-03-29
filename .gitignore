@@ -9,11 +9,16 @@ lerna-debug.log*
 
 # Environment variables
 .env
+.env.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 .env.*.local
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
 
 # Build files
 dist/
@@ -59,10 +64,6 @@ pnpm-lock.yaml
 # Logs
 logs/
 *.log
-
-# Vercel
-.vercel
-.vercel/*
 
 # Next.js build output (if using Next.js later)
 .next/
@@ -128,6 +129,9 @@ __tests__/
 # Local development
 .local
 *.local
+.netlify/
+.render/
+frontend/.vite/
 
 # Error logs
 error.log

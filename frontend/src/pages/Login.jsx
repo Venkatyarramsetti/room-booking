@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../utils/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    username: '',
-    password: ''
+    username: 'ajaykumar',
+    password: 'Ajaykumar@123'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -99,7 +99,7 @@ const Login = () => {
         
         <div style={{ textAlign: 'center', marginTop: '2rem' }}>
           <p>
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link to="/register" style={{ color: '#007bff', textDecoration: 'none' }}>
               Register here
             </Link>

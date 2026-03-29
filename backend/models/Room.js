@@ -11,6 +11,16 @@ const roomSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  imageUrl: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  imagePublicId: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

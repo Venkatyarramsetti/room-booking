@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { roomsAPI, bookingsAPI } from '../utils/api';
 
@@ -12,20 +12,13 @@ const AdminPanel = () => {
     name: '',
     description: ''
   });
+  const [selectedImage, setSelectedImage] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
 
-  useEffect(() => {
-    if (activeTab === 'rooms') {
-      fetchRooms();
-    } else if (activeTab === 'bookings') {
-      fetchBookings();
-    }
-  }, [activeTab]);
-
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     try {
       setLoading(true);
       const response = await roomsAPI.getAll();
@@ -36,9 +29,9 @@ const AdminPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
       const response = await bookingsAPI.getAll();
@@ -49,7 +42,15 @@ const AdminPanel = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'rooms') {
+      fetchRooms();
+    } else if (activeTab === 'bookings') {
+      fetchBookings();
+    }
+  }, [activeTab, fetchRooms, fetchBookings]);
 
   const showMessage = (msg, type) => {
     setMessage(msg);
@@ -76,11 +77,21 @@ const AdminPanel = () => {
     }
 
     try {
+      let imageBase64;
+      if (selectedImage) {
+        imageBase64 = await readFileAsBase64(selectedImage);
+      }
+
+      const payload = {
+        ...formData,
+        ...(imageBase64 ? { imageBase64 } : {})
+      };
+
       if (isEditing) {
-        await roomsAPI.update(editingId, formData);
+        await roomsAPI.update(editingId, payload);
         showMessage('Room updated successfully!', 'success');
       } else {
-        await roomsAPI.create(formData);
+        await roomsAPI.create(payload);
         showMessage('Room created successfully!', 'success');
       }
       
@@ -88,6 +99,7 @@ const AdminPanel = () => {
       setFormData({ name: '', description: '' });
       setIsEditing(false);
       setEditingId(null);
+      setSelectedImage(null);
       
       // Refresh rooms
       fetchRooms();
@@ -106,14 +118,24 @@ const AdminPanel = () => {
       description: room.description
     });
     setIsEditing(true);
-    setEditingId(room._id);
+    setEditingId(room._id || room.id);
+    setSelectedImage(null);
   };
 
   const handleCancelEdit = () => {
     setFormData({ name: '', description: '' });
     setIsEditing(false);
     setEditingId(null);
+    setSelectedImage(null);
   };
+
+  const readFileAsBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
   const handleDeleteRoom = async (roomId) => {
     if (!window.confirm('Are you sure you want to delete this room? This action cannot be undone.')) {
@@ -232,6 +254,17 @@ const AdminPanel = () => {
                     placeholder="Describe the room features, capacity, equipment, etc."
                   />
                 </div>
+
+                <div className="form-group">
+                  <label htmlFor="roomImage">Room Image (optional)</label>
+                  <input
+                    type="file"
+                    id="roomImage"
+                    accept="image/*"
+                    className="form-input"
+                    onChange={(e) => setSelectedImage(e.target.files?.[0] || null)}
+                  />
+                </div>
                 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button type="submit" className="btn btn-success">
@@ -266,7 +299,7 @@ const AdminPanel = () => {
                 <div>
                   {rooms.map((room) => (
                     <div 
-                      key={room._id} 
+                      key={room._id || room.id} 
                       className="room-item"
                       style={{
                         border: '1px solid #ddd',
@@ -279,6 +312,13 @@ const AdminPanel = () => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div>
                           <h4 style={{ margin: '0 0 0.5rem 0' }}>{room.name}</h4>
+                          {room.imageUrl && (
+                            <img
+                              src={room.imageUrl}
+                              alt={room.name}
+                              style={{ width: '100%', maxWidth: '220px', borderRadius: '8px', marginBottom: '0.75rem' }}
+                            />
+                          )}
                           <p style={{ margin: '0.25rem 0', color: '#666' }}>{room.description}</p>
                           <small style={{ color: '#888' }}>
                             Created by: {room.createdBy?.fullName || 'Unknown'} | 
@@ -295,7 +335,7 @@ const AdminPanel = () => {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDeleteRoom(room._id)}
+                            onClick={() => handleDeleteRoom(room._id || room.id)}
                             className="btn btn-danger"
                             style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
                           >
@@ -345,7 +385,7 @@ const AdminPanel = () => {
                   </thead>
                   <tbody>
                     {bookings.map((booking) => (
-                      <tr key={booking._id}>
+                      <tr key={booking._id || booking.id}>
                         <td>
                           <div>
                             <strong>{booking.user?.fullName || 'Unknown'}</strong>
@@ -380,7 +420,7 @@ const AdminPanel = () => {
                         <td>{formatDateTime(booking.createdAt)}</td>
                         <td>
                           <button
-                            onClick={() => handleDeleteBooking(booking._id)}
+                            onClick={() => handleDeleteBooking(booking._id || booking.id)}
                             className="btn btn-danger"
                             style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
                           >

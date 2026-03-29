@@ -1,8 +1,24 @@
 const express = require('express');
 const Room = require('../models/Room');
 const { auth, adminAuth } = require('../middleware/auth');
+const { cloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
 
 const router = express.Router();
+
+const uploadRoomImage = async (imageBase64) => {
+  if (!isCloudinaryConfigured()) {
+    throw new Error('Cloudinary is not configured');
+  }
+
+  const result = await cloudinary.uploader.upload(imageBase64, {
+    folder: 'room-booking/rooms'
+  });
+
+  return {
+    imageUrl: result.secure_url,
+    imagePublicId: result.public_id
+  };
+};
 
 // Get all rooms (anyone can view)
 router.get('/', async (req, res) => {
@@ -38,7 +54,7 @@ router.get('/:id', async (req, res) => {
 // Create new room (admin only)
 router.post('/', auth, adminAuth, async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, imageBase64 } = req.body;
 
     // Check if room with same name already exists
     const existingRoom = await Room.findOne({ name });
@@ -48,9 +64,12 @@ router.post('/', auth, adminAuth, async (req, res) => {
       });
     }
 
+    const imageData = imageBase64 ? await uploadRoomImage(imageBase64) : {};
+
     const room = new Room({
       name,
       description,
+      ...imageData,
       createdBy: req.user._id
     });
 
@@ -70,7 +89,7 @@ router.post('/', auth, adminAuth, async (req, res) => {
 // Update room (admin only)
 router.put('/:id', auth, adminAuth, async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, imageBase64 } = req.body;
     
     const room = await Room.findById(req.params.id);
     if (!room) {
@@ -89,6 +108,16 @@ router.put('/:id', auth, adminAuth, async (req, res) => {
 
     room.name = name || room.name;
     room.description = description || room.description;
+
+    if (imageBase64) {
+      if (room.imagePublicId && isCloudinaryConfigured()) {
+        await cloudinary.uploader.destroy(room.imagePublicId);
+      }
+
+      const imageData = await uploadRoomImage(imageBase64);
+      room.imageUrl = imageData.imageUrl;
+      room.imagePublicId = imageData.imagePublicId;
+    }
     
     await room.save();
     await room.populate('createdBy', 'fullName');
@@ -109,6 +138,10 @@ router.delete('/:id', auth, adminAuth, async (req, res) => {
     const room = await Room.findById(req.params.id);
     if (!room) {
       return res.status(404).json({ message: 'Room not found' });
+    }
+
+    if (room.imagePublicId && isCloudinaryConfigured()) {
+      await cloudinary.uploader.destroy(room.imagePublicId);
     }
 
     await Room.findByIdAndDelete(req.params.id);

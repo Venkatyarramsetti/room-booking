@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 // Import routes
@@ -10,79 +10,64 @@ const roomRoutes = require('./routes/rooms');
 const bookingRoutes = require('./routes/bookings');
 
 const app = express();
+const DB_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'ajaykumar';
+const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Ajaykumar@123';
+const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@roombooking.local';
+const DEFAULT_ADMIN_FULLNAME = process.env.ADMIN_FULLNAME || 'Default Admin';
+
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http://127.0.0.1:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  }
+}));
 app.use(express.json());
 
 // Connect to MongoDB
 async function connectDB() {
-  try {
-    // Try to connect to MongoDB Atlas first
-    await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000 // timeout after 5 seconds
-    });
-    console.log('✅ Connected to MongoDB Atlas');
-  } catch (error) {
-    // If Atlas fails, use in-memory MongoDB for development
-    console.log('⚠️  MongoDB Atlas unavailable, using in-memory MongoDB...');
-    const mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri);
-    console.log('✅ Connected to in-memory MongoDB for development');
-    
-    // Seed some initial data
-    await seedDatabase();
+  if (!DB_URI) {
+    throw new Error('Mongo URI is missing. Set MONGO_URI (or MONGODB_URI) in backend/.env');
   }
+
+  await mongoose.connect(DB_URI, {
+    serverSelectionTimeoutMS: 10000
+  });
+  console.log('✅ Connected to MongoDB');
 }
 
-async function seedDatabase() {
+async function ensureDefaultAdmin() {
   const User = require('./models/User');
-  const Room = require('./models/Room');
-  
-  // Check if we already have data
-  const userCount = await User.countDocuments();
-  if (userCount > 0) return;
-  
-  // Create admin user
-  const bcrypt = require('bcryptjs');
-  const adminPassword = await bcrypt.hash('Ajaykumar@123', 10);
-  const admin = await User.create({
-    fullName: 'Palikila Ajay Kumar',
-    email: 'ajaykumarpalikila@gmail.com',
-    username: 'ajaykumar',
-    password: adminPassword,
-    role: 'admin'
-  });
 
-  // Create dummy regular user for testing
-  const userPassword = await bcrypt.hash('Venkat@123', 10);
-  await User.create({
-    fullName: 'Test User',
-    email: 'venkat@gmail.com',
-    username: 'venkat',
-    password: userPassword,
-    role: 'user'
-  });
-  
-  // Create sample rooms
-  await Room.create([
-    {
-      name: 'Conference Room A',
-      description: 'Large conference room with modern amenities, perfect for team meetings and presentations',
-      createdBy: admin._id
-    },
-    {
-      name: 'Meeting Room B',
-      description: 'Medium-sized meeting room ideal for small group discussions',
-      createdBy: admin._id
-    },
-    {
-      name: 'Training Room',
-      description: 'Spacious training room equipped for workshops and training sessions',
-      createdBy: admin._id
-    }
-  ]);
+  const existingAdmin = await User.findOne({ username: DEFAULT_ADMIN_USERNAME });
+  const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
+
+  if (!existingAdmin) {
+    await User.create({
+      fullName: DEFAULT_ADMIN_FULLNAME,
+      email: DEFAULT_ADMIN_EMAIL,
+      username: DEFAULT_ADMIN_USERNAME,
+      password: hashedPassword,
+      role: 'admin'
+    });
+    console.log(`✅ Default admin created: ${DEFAULT_ADMIN_USERNAME}`);
+    return;
+  }
+
+  existingAdmin.fullName = DEFAULT_ADMIN_FULLNAME;
+  existingAdmin.email = DEFAULT_ADMIN_EMAIL;
+  existingAdmin.password = hashedPassword;
+  existingAdmin.role = 'admin';
+  await existingAdmin.save();
+  console.log(`✅ Default admin ensured: ${DEFAULT_ADMIN_USERNAME}`);
 }
 
 // Routes
@@ -97,7 +82,9 @@ app.get('/', (req, res) => {
 
 // Start server only after DB connection
 connectDB().then(() => {
-  const PORT = process.env.PORT || 3000;
+  return ensureDefaultAdmin();
+}).then(() => {
+  const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
   });

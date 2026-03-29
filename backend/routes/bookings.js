@@ -2,8 +2,22 @@ const express = require('express');
 const Booking = require('../models/Booking');
 const Room = require('../models/Room');
 const { auth, adminAuth } = require('../middleware/auth');
+const { TIME_SLOTS } = require('../constants/timeSlots');
 
 const router = express.Router();
+
+const getDayRange = (dateString) => {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
+};
 
 // Get all bookings (admin can see all, users see their own)
 router.get('/', auth, async (req, res) => {
@@ -34,6 +48,11 @@ router.get('/', auth, async (req, res) => {
 router.get('/available-slots/:roomId/:date', async (req, res) => {
   try {
     const { roomId, date } = req.params;
+    const dayRange = getDayRange(date);
+
+    if (!dayRange) {
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
     
     // Check if room exists
     const room = await Room.findById(roomId);
@@ -41,17 +60,10 @@ router.get('/available-slots/:roomId/:date', async (req, res) => {
       return res.status(404).json({ message: 'Room not found' });
     }
 
-    // All possible time slots (9AM-5PM)
-    const allSlots = [
-      '09:00-10:00', '10:00-11:00', '11:00-12:00',
-      '12:00-13:00', '13:00-14:00', '14:00-15:00',
-      '15:00-16:00', '16:00-17:00'
-    ];
-
     // Find bookings for this room and date
     const bookings = await Booking.find({
       room: roomId,
-      date: new Date(date),
+      date: { $gte: dayRange.start, $lt: dayRange.end },
       status: 'confirmed'
     });
 
@@ -62,7 +74,7 @@ router.get('/available-slots/:roomId/:date', async (req, res) => {
     });
 
     // Calculate available slots
-    const availableSlots = allSlots.filter(slot => 
+    const availableSlots = TIME_SLOTS.filter(slot => 
       !bookedSlots.includes(slot)
     );
 
@@ -82,12 +94,23 @@ router.get('/available-slots/:roomId/:date', async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     const { roomId, date, timeSlots, fullName, phoneNumber, idProof } = req.body;
+    const dayRange = getDayRange(date);
 
     // Validate required fields
-    if (!fullName || !idProof) {
+    if (!fullName || !idProof || !roomId || !date) {
       return res.status(400).json({ 
-        message: 'Full name and ID proof are required' 
+        message: 'Room, date, full name and ID proof are required' 
       });
+    }
+
+    if (!Array.isArray(timeSlots) || timeSlots.length === 0) {
+      return res.status(400).json({
+        message: 'At least one time slot is required'
+      });
+    }
+
+    if (!dayRange) {
+      return res.status(400).json({ message: 'Invalid date format' });
     }
 
     // Check if room exists
@@ -96,14 +119,7 @@ router.post('/', auth, async (req, res) => {
       return res.status(404).json({ message: 'Room not found' });
     }
 
-    // Validate time slots
-    const validSlots = [
-      '09:00-10:00', '10:00-11:00', '11:00-12:00',
-      '12:00-13:00', '13:00-14:00', '14:00-15:00',
-      '15:00-16:00', '16:00-17:00'
-    ];
-    
-    const invalidSlots = timeSlots.filter(slot => !validSlots.includes(slot));
+    const invalidSlots = timeSlots.filter(slot => !TIME_SLOTS.includes(slot));
     if (invalidSlots.length > 0) {
       return res.status(400).json({ 
         message: `Invalid time slots: ${invalidSlots.join(', ')}` 
@@ -113,7 +129,7 @@ router.post('/', auth, async (req, res) => {
     // Check for conflicts (double booking)
     const conflictingBookings = await Booking.find({
       room: roomId,
-      date: new Date(date),
+      date: { $gte: dayRange.start, $lt: dayRange.end },
       status: 'confirmed',
       timeSlots: { $in: timeSlots }
     });
@@ -138,7 +154,7 @@ router.post('/', auth, async (req, res) => {
       fullName,
       phoneNumber,
       idProof,
-      date: new Date(date),
+      date: dayRange.start,
       timeSlots
     });
 

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { roomsAPI } from '../utils/api';
+import { DEMO_ROOMS } from '../constants/demoData';
 
 const Home = () => {
   const { isAuthenticated } = useAuth();
@@ -20,27 +21,7 @@ const Home = () => {
       setRooms(response.data);
     } catch (error) {
       console.error('Error fetching rooms:', error);
-      // Use static demo data when API fails
-      setRooms([
-        {
-          _id: '1',
-          name: 'Conference Room A',
-          description: 'Large conference room with projector and whiteboard. Seats up to 12 people.',
-          createdBy: { fullName: 'Admin' }
-        },
-        {
-          _id: '2', 
-          name: 'Meeting Room B',
-          description: 'Small meeting room perfect for team discussions. Seats up to 6 people.',
-          createdBy: { fullName: 'Admin' }
-        },
-        {
-          _id: '3',
-          name: 'Boardroom',
-          description: 'Executive boardroom with premium furniture. Seats up to 16 people.',
-          createdBy: { fullName: 'Admin' }
-        }
-      ]);
+      setRooms(DEMO_ROOMS);
       setError('');
     } finally {
       setLoading(false);
@@ -98,7 +79,7 @@ const Home = () => {
         {!loading && !error && rooms.length > 0 && (
           <div className="grid">
             {rooms.map((room) => (
-              <div key={room._id} className="card">
+              <div key={room._id || room.id} className="card">
                 <h3>📍 {room.name}</h3>
                 <p>{room.description}</p>
                 <div style={{ 
