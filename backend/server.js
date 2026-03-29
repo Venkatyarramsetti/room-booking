@@ -23,10 +23,50 @@ const allowedOrigins = configuredFrontendOrigins
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+function parseUrlSafe(value) {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
+function isWildcardHostMatch(origin, allowedOrigin) {
+  const originUrl = parseUrlSafe(origin);
+  const allowedUrl = parseUrlSafe(allowedOrigin);
+
+  if (!originUrl || !allowedUrl) return false;
+  if (!allowedUrl.hostname.startsWith('*.')) return false;
+  if (originUrl.protocol !== allowedUrl.protocol) return false;
+
+  const allowedBaseHost = allowedUrl.hostname.slice(2);
+  return originUrl.hostname === allowedBaseHost || originUrl.hostname.endsWith(`.${allowedBaseHost}`);
+}
+
+function isNetlifyPreviewMatch(origin, allowedOrigin) {
+  const originUrl = parseUrlSafe(origin);
+  const allowedUrl = parseUrlSafe(allowedOrigin);
+
+  if (!originUrl || !allowedUrl) return false;
+  if (originUrl.protocol !== allowedUrl.protocol) return false;
+  if (!allowedUrl.hostname.endsWith('.netlify.app')) return false;
+
+  return originUrl.hostname.endsWith(`--${allowedUrl.hostname}`);
+}
+
+function isOriginAllowed(origin) {
+  return allowedOrigins.some((allowedOrigin) => {
+    if (allowedOrigin === origin) return true;
+    if (isWildcardHostMatch(origin, allowedOrigin)) return true;
+    if (isNetlifyPreviewMatch(origin, allowedOrigin)) return true;
+    return false;
+  });
+}
+
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow non-browser requests (no Origin header) and known browser origins.
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || isOriginAllowed(origin)) {
       return callback(null, true);
     }
 
