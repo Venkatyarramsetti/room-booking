@@ -31,6 +31,7 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   register: (userData) => api.post('/auth/register', userData),
+  me: () => api.get('/auth/me'),
 };
 
 // Rooms API calls
