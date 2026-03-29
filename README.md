@@ -83,7 +83,7 @@ Go to `http://localhost:5173`
 	 - `MONGO_URI`
 	 - `JWT_SECRET`
 	 - `PORT=5000`
-	 - `FRONTEND_URL` (your Netlify URL)
+	 - `FRONTEND_URL` (comma-separated origins, e.g. `https://roombookings.netlify.app,http://localhost:5173,http://127.0.0.1:5173`)
 	 - `ADMIN_USERNAME=ajaykumar`
 	 - `ADMIN_PASSWORD=Ajaykumar@123`
 	 - `ADMIN_EMAIL`
