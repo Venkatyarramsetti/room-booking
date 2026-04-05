@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const dns = require('node:dns');
 require('dotenv').config();
 
 // Import routes
@@ -11,11 +12,21 @@ const bookingRoutes = require('./routes/bookings');
 
 const app = express();
 const DB_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+const DB_URI_DIRECT = process.env.MONGO_URI_DIRECT || process.env.MONGODB_URI_DIRECT;
 const SHOULD_BOOTSTRAP_ADMIN = process.env.BOOTSTRAP_ADMIN === 'true';
 const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const DEFAULT_ADMIN_FULLNAME = process.env.ADMIN_FULLNAME;
+const configuredDnsServers = (process.env.DNS_SERVERS || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+if (configuredDnsServers.length > 0) {
+  dns.setServers(configuredDnsServers);
+  console.log('Using custom DNS servers:', configuredDnsServers.join(', '));
+}
 
 const configuredFrontendOrigins = process.env.FRONTEND_URL || process.env.FRONTEND_URLS || 'http://localhost:5173,http://127.0.0.1:5173';
 
@@ -91,9 +102,28 @@ async function connectDB() {
     throw new Error('Mongo URI is missing. Set MONGO_URI (or MONGODB_URI) in backend/.env');
   }
 
-  await mongoose.connect(DB_URI, {
-    serverSelectionTimeoutMS: 10000
-  });
+  try {
+    await mongoose.connect(DB_URI, {
+      serverSelectionTimeoutMS: 10000
+    });
+  } catch (error) {
+    if (error?.code === 'ECONNREFUSED' && error?.syscall === 'querySrv') {
+      if (DB_URI_DIRECT) {
+        console.warn('MongoDB SRV DNS lookup failed. Retrying with MONGO_URI_DIRECT...');
+        await mongoose.connect(DB_URI_DIRECT, {
+          serverSelectionTimeoutMS: 10000
+        });
+      } else {
+        throw new Error(
+          'MongoDB SRV DNS lookup failed. Your DNS resolver is refusing SRV queries. ' +
+          'Set DNS_SERVERS=8.8.8.8,1.1.1.1 in backend/.env or set MONGO_URI_DIRECT to a non-SRV mongodb:// URI from Atlas.'
+        );
+      }
+    } else {
+      throw error;
+    }
+  }
+
   console.log('✅ Connected to MongoDB');
 }
 
