@@ -1,8 +1,27 @@
 import axios from 'axios';
 
+function resolveApiBaseUrl() {
+  const configured = import.meta.env.VITE_API_URL?.trim();
+
+  if (!configured) {
+    return '/api';
+  }
+
+  if (configured === '/api' || configured.endsWith('/api')) {
+    return configured;
+  }
+
+  // If a full backend domain is provided without a route prefix, append /api.
+  if (/^https?:\/\//i.test(configured)) {
+    return `${configured.replace(/\/+$/, '')}/api`;
+  }
+
+  return configured;
+}
+
 // Create axios instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: resolveApiBaseUrl(),
 });
 
 // Add auth token to requests
