@@ -98,10 +98,4 @@ Go to `http://localhost:5173`
 3. Build command: `npm run build`
 4. Publish directory: `dist`
 5. Add environment variable:
-	 - `VITE_API_URL=https://<your-render-service>.onrender.com/api`
-6. Redeploy and verify login + room image upload.
-
-## Need Help?
-- Make sure MongoDB Atlas IP whitelist includes your IP
-- Check both servers are running on ports 5000 and 5173
-- Verify `.env` file has correct MongoDB connection string
+	 - `VITE_API_URL=https://<your-render-service>.onrender.com/ap`
